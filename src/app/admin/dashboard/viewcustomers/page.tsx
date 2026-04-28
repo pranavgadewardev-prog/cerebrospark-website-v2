@@ -1,294 +1,151 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
 
-type CustomerStatus = "Active" | "Inactive" | "Blocked";
+/* ================= TYPES ================= */
 
-interface Customer {
+interface User {
   id: string;
   name: string;
   email: string;
-  phone: string;
-  city: string;
-  joinedDate: string; // YYYY-MM-DD
-  totalOrders: number;
-  totalSpent: number;
-  status: CustomerStatus;
+  role: string;
+  created_at: string;
 }
 
-export default function ViewCustomers() {
-  const [search, setSearch] = useState<string>("");
-  const [statusFilter, setStatusFilter] = useState<"All" | CustomerStatus>(
-    "All"
-  );
+/* ================= COMPONENT ================= */
 
-  // Dummy Customers Data (Replace with API later)
-  const customers: Customer[] = [
-    {
-      id: "CUS-1001",
-      name: "Pranav Gadewar",
-      email: "pranav@gmail.com",
-      phone: "+91 98765 43210",
-      city: "Nagpur",
-      joinedDate: "2026-01-10",
-      totalOrders: 4,
-      totalSpent: 789700,
-      status: "Active",
-    },
-    {
-      id: "CUS-1002",
-      name: "Rahul Sharma",
-      email: "rahul@gmail.com",
-      phone: "+91 91234 56789",
-      city: "Pune",
-      joinedDate: "2026-01-12",
-      totalOrders: 2,
-      totalSpent: 319800,
-      status: "Active",
-    },
-    {
-      id: "CUS-1003",
-      name: "Aditi Patil",
-      email: "aditi@gmail.com",
-      phone: "+91 99887 66554",
-      city: "Mumbai",
-      joinedDate: "2026-01-15",
-      totalOrders: 1,
-      totalSpent: 349900,
-      status: "Inactive",
-    },
-    {
-      id: "CUS-1004",
-      name: "Sahil Khan",
-      email: "sahil@gmail.com",
-      phone: "+91 90000 11122",
-      city: "Delhi",
-      joinedDate: "2026-01-16",
-      totalOrders: 1,
-      totalSpent: 99900,
-      status: "Blocked",
-    },
-  ];
+export default function AdminCustomersPage() {
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filteredCustomers = useMemo(() => {
-    const query = search.toLowerCase().trim();
+  /* ================= FETCH USERS ================= */
 
-    return customers.filter((customer) => {
-      const matchesSearch =
-        query.length === 0
-          ? true
-          : customer.id.toLowerCase().includes(query) ||
-            customer.name.toLowerCase().includes(query) ||
-            customer.email.toLowerCase().includes(query) ||
-            customer.phone.toLowerCase().includes(query) ||
-            customer.city.toLowerCase().includes(query);
+  const fetchUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("users")
+        .select("*")
+        .neq("role", "admin") // ✅ EXCLUDE ADMINS
+        .order("created_at", { ascending: false });
 
-      const matchesStatus =
-        statusFilter === "All" ? true : customer.status === statusFilter;
+      if (error) throw error;
 
-      return matchesSearch && matchesStatus;
-    });
-  }, [search, statusFilter]);
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
-
-  const getStatusStyle = (status: CustomerStatus): string => {
-    switch (status) {
-      case "Active":
-        return "bg-green-100 text-green-700 border-green-200";
-      case "Inactive":
-        return "bg-yellow-100 text-yellow-700 border-yellow-200";
-      case "Blocked":
-        return "bg-red-100 text-red-700 border-red-200";
-      default:
-        return "bg-gray-100 text-gray-700 border-gray-200";
+      setUsers(data || []);
+    } catch (err) {
+      console.error("Error fetching users:", err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleExport = () => {
-    const headers = [
-      "Customer ID",
-      "Name",
-      "Email",
-      "Phone",
-      "City",
-      "Joined Date",
-      "Total Orders",
-      "Total Spent",
-      "Status",
-    ];
+  useEffect(() => {
+    fetchUsers();
+  }, []);
 
-    const rows = filteredCustomers.map((c) => [
-      c.id,
-      c.name,
-      c.email,
-      c.phone,
-      c.city,
-      c.joinedDate,
-      String(c.totalOrders),
-      String(c.totalSpent),
-      c.status,
-    ]);
+  /* ================= DELETE USER ================= */
 
-    const csv = [headers, ...rows]
-      .map((r) => r.map((x) => `"${String(x).replaceAll('"', '""')}"`).join(","))
-      .join("\n");
+  const handleDelete = async (id: string) => {
+    const confirmDelete = confirm("Delete this user?");
+    if (!confirmDelete) return;
 
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
+    try {
+      const { error } = await supabase
+        .from("users")
+        .delete()
+        .eq("id", id);
 
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "customers.csv";
-    link.click();
+      if (error) throw error;
 
-    URL.revokeObjectURL(url);
+      fetchUsers();
+    } catch (err) {
+      console.error("Delete error:", err);
+      alert("Failed to delete user");
+    }
   };
 
+  /* ================= FORMAT DATE ================= */
+
+  const formatDate = (date: string) => {
+    return new Date(date).toLocaleDateString();
+  };
+
+  /* ================= UI ================= */
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-[60vh] text-gray-500">
+        Loading customers...
+      </div>
+    );
+  }
+
   return (
-    <div className="w-full min-h-screen bg-gray-100 text-gray-900 p-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">
-            View <span className="text-yellow-500">Customers</span>
-          </h1>
-          <p className="text-gray-600 mt-1">
-            Manage and track all customers from one dashboard
-          </p>
-        </div>
+    <div className="p-6 md:p-10 space-y-8">
+      <h1 className="text-3xl font-bold">
+        Customers <span className="text-yellow-500">Management</span>
+      </h1>
 
-        <button
-          type="button"
-          onClick={handleExport}
-          className="bg-yellow-400 text-black font-semibold px-5 py-2 rounded-xl hover:bg-yellow-300 transition shadow-md"
-        >
-          Export Customers
-        </button>
-      </div>
-
-      {/* Filters */}
-      <div className="bg-white rounded-2xl p-5 mb-6 shadow-lg border border-gray-200">
-        <div className="flex flex-col xl:flex-row gap-4 xl:items-end xl:justify-between">
-          {/* Search */}
-          <div className="w-full xl:w-[60%]">
-            <label className="text-sm text-gray-700 font-medium">
-              Search Customers
-            </label>
-            <input
-              type="text"
-              placeholder="Search by ID / Name / Email / Phone / City..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="mt-2 w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-            />
-          </div>
-
-          {/* Status Filter */}
-          <div className="w-full sm:w-[50%] xl:w-[35%]">
-            <label className="text-sm text-gray-700 font-medium">
-              Filter by Status
-            </label>
-            <select
-              value={statusFilter}
-              onChange={(e) =>
-                setStatusFilter(e.target.value as "All" | CustomerStatus)
-              }
-              className="mt-2 w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+      {users.length === 0 ? (
+        <p className="text-gray-500">No users found</p>
+      ) : (
+        <div className="space-y-4">
+          {users.map((user) => (
+            <div
+              key={user.id}
+              className="bg-white p-5 rounded-2xl shadow flex items-center gap-6"
             >
-              <option value="All">All</option>
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
-              <option value="Blocked">Blocked</option>
-            </select>
-          </div>
-        </div>
-      </div>
+              {/* Avatar */}
+              <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center font-bold text-gray-600">
+                {user.name?.charAt(0).toUpperCase() || "U"}
+              </div>
 
-      {/* Customers Table */}
-      <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-        <div className="p-5 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <h2 className="text-xl font-semibold text-gray-900">Customers List</h2>
-          <span className="text-sm text-gray-600">
-            Total:{" "}
-            <span className="font-semibold">{filteredCustomers.length}</span>
-          </span>
-        </div>
+              {/* Info */}
+              <div className="flex-1">
+                <h2 className="font-semibold text-lg">
+                  {user.name || "No Name"}
+                </h2>
+                <p className="text-sm text-gray-500">{user.email}</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  Joined: {formatDate(user.created_at)}
+                </p>
+              </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left min-w-[1100px]">
-            <thead className="bg-gray-50 text-gray-700">
-              <tr>
-                <th className="p-4 whitespace-nowrap">Customer ID</th>
-                <th className="p-4 whitespace-nowrap">Name</th>
-                <th className="p-4 whitespace-nowrap">Email</th>
-                <th className="p-4 whitespace-nowrap">Phone</th>
-                <th className="p-4 whitespace-nowrap">City</th>
-                <th className="p-4 whitespace-nowrap">Joined</th>
-                <th className="p-4 whitespace-nowrap">Orders</th>
-                {/* <th className="p-4 whitespace-nowrap">Total Spent</th> */}
-                {/* <th className="p-4 whitespace-nowrap">Status</th> */}
-                <th className="p-4 whitespace-nowrap">Action</th>
-              </tr>
-            </thead>
+              {/* Role */}
+              <div>
+                <span
+                  className={`px-3 py-1 text-xs rounded-full font-semibold
+                  ${user.role === "admin"
+                      ? "bg-purple-100 text-purple-700"
+                      : "bg-gray-100 text-gray-700"
+                    }`}
+                >
+                  {user.role}
+                </span>
+              </div>
 
-            <tbody>
-              {filteredCustomers.length === 0 ? (
-                <tr>
-                  <td colSpan={10} className="p-6 text-center text-gray-500">
-                    No customers found.
-                  </td>
-                </tr>
-              ) : (
-                filteredCustomers.map((customer) => (
-                  <tr
-                    key={customer.id}
-                    className="border-b border-gray-200 hover:bg-yellow-50 transition"
-                  >
-                    <td className="p-4 font-semibold text-yellow-600">
-                      {customer.id}
-                    </td>
-                    <td className="p-4 text-gray-900">{customer.name}</td>
-                    <td className="p-4 text-gray-600">{customer.email}</td>
-                    <td className="p-4 text-gray-700">{customer.phone}</td>
-                    <td className="p-4 text-gray-700">{customer.city}</td>
-                    <td className="p-4 text-gray-700">{customer.joinedDate}</td>
-                    <td className="p-4 font-semibold text-gray-900">
-                      {customer.totalOrders}
-                    </td>
-                    {/* <td className="p-4 font-semibold text-gray-900">
-                      {formatCurrency(customer.totalSpent)}
-                    </td> */}
-                    {/* <td className="p-4">
-                      <span
-                        className={`px-3 py-1 rounded-full text-sm border ${getStatusStyle(
-                          customer.status
-                        )}`}
-                      >
-                        {customer.status}
-                      </span>
-                    </td> */}
-                    <td className="p-4">
-                      <button
-                        type="button"
-                        className="bg-gray-900 text-white hover:bg-gray-800 px-4 py-2 rounded-xl text-sm transition"
-                      >
-                        View
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+              {/* Actions */}
+              <div className="flex gap-2">
+                <button
+                  className="px-4 py-2 bg-yellow-400 rounded-lg text-sm font-medium"
+                  onClick={() =>
+                    alert("Next: View user orders page")
+                  }
+                >
+                  View
+                </button>
+
+                <button
+                  onClick={() => handleDelete(user.id)}
+                  className="px-4 py-2 bg-red-500 text-white rounded-lg text-sm"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
-      </div>
+      )}
     </div>
   );
 }

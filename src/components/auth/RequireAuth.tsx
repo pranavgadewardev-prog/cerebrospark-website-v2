@@ -1,26 +1,42 @@
 "use client";
 
-import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "@/lib/firebase";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabaseClient";
 
-export default function RequireAuth({ children }: { children: React.ReactNode }) {
+export default function RequireAuth({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const router = useRouter();
-  const [checking, setChecking] = useState(true);
+  const [allowed, setAllowed] = useState(false);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (user) => {
-      if (!user) {
+    const checkAuth = async () => {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        // ❌ Not logged in
+        if (!session?.user) {
+          router.replace("/login");
+          return;
+        }
+
+        // ✅ Logged in
+        setAllowed(true);
+      } catch (err) {
         router.replace("/login");
       }
-      setChecking(false);
-    });
+    };
 
-    return () => unsub();
+    checkAuth();
   }, [router]);
 
-  if (checking) {
+  // 🔥 Prevent flicker
+  if (!allowed) {
     return (
       <div className="min-h-screen flex items-center justify-center text-gray-600">
         Checking session...

@@ -5,9 +5,11 @@ import Link from "next/link";
 import { Eye, EyeOff } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase";
+// import { createUserWithEmailAndPassword } from "firebase/auth";
+// import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+// import { auth, db } from "@/lib/firebase";
+
+import { supabase } from "@/lib/supabaseClient";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -53,17 +55,23 @@ export default function SignupPage() {
     try {
       setLoading(true);
 
-      // 1) Create Firebase Auth account
-      const userCred = await createUserWithEmailAndPassword(
-        auth,
+      // ✅ ONLY SIGNUP (no login attempt)
+      const { data, error } = await supabase.auth.signUp({
         email,
-        password
-      );
+        password,
+      });
 
-      const uid = userCred.user.uid;
+      if (error) throw error;
 
-      // 2) Create Firestore profile
-      await setDoc(doc(db, "users", uid), {
+      const user = data.user;
+
+      if (!user) throw new Error("User not created");
+
+      // ❗ IMPORTANT: DO NOT check session here
+
+      // ✅ Insert user profile
+      const { error: insertError } = await supabase.from("users").insert({
+        id: user.id,
         name,
         email,
         phone,
@@ -72,15 +80,20 @@ export default function SignupPage() {
         state,
         city,
         address,
-        role: "user", // default role
-        createdAt: serverTimestamp(),
+        role: "user",
       });
 
-      // 3) Redirect to login
+      if (insertError) throw insertError;
+
+      // ✅ OPTIONAL: force logout (very important for your flow)
+      await supabase.auth.signOut();
+
+      // ✅ Redirect to login
       router.push("/login");
+
     } catch (err: unknown) {
       const message =
-        err instanceof Error ? err.message : "Signup failed. Please try again.";
+        err instanceof Error ? err.message : "Signup failed.";
       setErrorMsg(message);
     } finally {
       setLoading(false);
