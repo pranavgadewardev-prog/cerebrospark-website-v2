@@ -16,7 +16,7 @@
     "@mui/icons-material": "^7.3.6",
     "@mui/material": "^7.3.7",
     "@studio-freight/lenis": "^1.0.42",
-    "@supabase/supabase-js": "^2.94.1",
+    "@supabase/supabase-js": "^2.105.0",
     "aceternity-ui": "^0.2.2",
     "canvas-confetti": "^1.9.4",
     "class-variance-authority": "^0.7.1",
