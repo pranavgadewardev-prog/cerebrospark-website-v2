@@ -11,38 +11,6 @@ export default function ForgotPasswordPage() {
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
 
-  // const handleReset = async (e: React.FormEvent) => {
-  //   e.preventDefault();
-  //   setErrorMsg("");
-  //   setSuccessMsg("");
-
-  //   if (!email.includes("@")) {
-  //     setErrorMsg("Please enter a valid email.");
-  //     return;
-  //   }
-
-  //   try {
-  //     setLoading(true);
-
-  //     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-  //       redirectTo: "http://localhost:3000/update-password",
-  //     });
-
-  //     if (error) throw error;
-
-  //     setSuccessMsg(
-  //       "Password reset link has been sent to your email. Please check your inbox."
-  //     );
-  //     setEmail("");
-  //   } catch (err: unknown) {
-  //     const errorMessage =
-  //       err instanceof Error ? err.message : "Something went wrong. Try again.";
-  //     setErrorMsg(errorMessage);
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
-
   const handleReset = async (e: React.FormEvent) => {
   e.preventDefault();
   if (loading) return;

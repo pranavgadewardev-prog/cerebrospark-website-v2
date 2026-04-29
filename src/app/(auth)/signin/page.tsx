@@ -5,10 +5,6 @@ import Link from "next/link";
 import { Eye, EyeOff } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-// import { createUserWithEmailAndPassword } from "firebase/auth";
-// import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-// import { auth, db } from "@/lib/firebase";
-
 import { supabase } from "@/lib/supabaseClient";
 
 export default function SignupPage() {
@@ -37,7 +33,10 @@ export default function SignupPage() {
     e.preventDefault();
     setErrorMsg("");
 
-    if (!email.includes("@")) {
+    // ✅ Validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailRegex.test(email)) {
       setErrorMsg("Please enter a valid email.");
       return;
     }
@@ -55,7 +54,7 @@ export default function SignupPage() {
     try {
       setLoading(true);
 
-      // ✅ ONLY SIGNUP (no login attempt)
+      // ✅ Signup
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -65,35 +64,49 @@ export default function SignupPage() {
 
       const user = data.user;
 
-      if (!user) throw new Error("User not created");
+      if (!user) {
+        throw new Error("Signup failed. Please try again.");
+      }
 
-      // ❗ IMPORTANT: DO NOT check session here
-
-      // ✅ Insert user profile
-      const { error: insertError } = await supabase.from("users").insert({
-        id: user.id,
-        name,
-        email,
-        phone,
-        gender,
-        country,
-        state,
-        city,
-        address,
-        role: "user",
+      // ✅ Create user profile via API
+      const res = await fetch("/api/users/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id: user.id,
+          name,
+          email,
+          phone,
+          gender,
+          country,
+          state,
+          city,
+          address,
+          role: "user",
+        }),
       });
 
-      if (insertError) throw insertError;
+      const result = await res.json();
 
-      // ✅ OPTIONAL: force logout (very important for your flow)
+      if (!res.ok) {
+        throw new Error(result?.error || "Failed to create user profile");
+      }
+
+      // ✅ Optional: logout (keeps flow clean if email confirmation is enabled)
       await supabase.auth.signOut();
 
-      // ✅ Redirect to login
-      router.push("/login");
+      // ✅ Success message + redirect
+      setErrorMsg("Account created! Please check your email.");
+
+      setTimeout(() => {
+        router.push("/login");
+      }, 1500);
 
     } catch (err: unknown) {
       const message =
-        err instanceof Error ? err.message : "Signup failed.";
+        err instanceof Error ? err.message : "Signup failed";
       setErrorMsg(message);
     } finally {
       setLoading(false);

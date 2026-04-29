@@ -18,81 +18,88 @@ export default function LoginPage() {
 
   const [checked, setChecked] = useState(false);
 
-// ✅ Check session ONLY ONCE (fixed flicker + lock issue)
-useEffect(() => {
-  let isMounted = true;
+  // ✅ Check session ONLY ONCE (fixed flicker + lock issue)
+  useEffect(() => {
+    let isMounted = true;
 
-  const checkSession = async () => {
-    const { data } = await supabase.auth.getSession();
-    const session = data.session;
-
-    if (!isMounted) return;
-
-    if (session?.user) {
-      const { data: userData } = await supabase
-        .from("users")
-        .select("role")
-        .eq("id", session.user.id)
-        .maybeSingle(); // ✅ prevents crash if no row
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      const session = data.session;
 
       if (!isMounted) return;
 
-      if (userData?.role === "admin") {
+      if (session?.user) {
+        const { data: userData } = await supabase
+          .from("users")
+          .select("role")
+          .eq("id", session.user.id)
+          .maybeSingle(); // ✅ prevents crash if no row
+
+        if (!isMounted) return;
+
+        if (userData?.role === "admin") {
+          router.replace("/admin/dashboard");
+        } else {
+          router.replace("/user/dashboard");
+        }
+      }
+
+      if (isMounted) setChecked(true);
+    };
+
+    checkSession();
+
+    return () => {
+      isMounted = false; // ✅ prevents double execution issues
+    };
+  }, [router]);
+
+
+  // ✅ LOGIN HANDLER (clean + stable)
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg("");
+
+    try {
+      setLoading(true);
+
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+
+      if (!data.session) {
+        throw new Error("Login failed");
+      }
+
+      const user = data.session.user;
+
+      const { data: userData } = await supabase
+        .from("users")
+        .select("role")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (!userData) {
+        throw new Error("User profile not found");
+      }
+
+      if (userData.role === "admin") {
         router.replace("/admin/dashboard");
       } else {
         router.replace("/user/dashboard");
       }
+
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Login failed";
+      setErrorMsg(message);
+    } finally {
+      setLoading(false);
     }
-
-    if (isMounted) setChecked(true);
   };
-
-  checkSession();
-
-  return () => {
-    isMounted = false; // ✅ prevents double execution issues
-  };
-}, [router]);
-
-
-// ✅ LOGIN HANDLER (clean + stable)
-const handleLogin = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setErrorMsg("");
-
-  try {
-    setLoading(true);
-
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) throw error;
-
-    const user = data.user;
-    if (!user) throw new Error("User not found");
-
-    const { data: userData } = await supabase
-      .from("users")
-      .select("role")
-      .eq("id", user.id)
-      .maybeSingle(); // ✅ avoids hard crash
-
-    if (userData?.role === "admin") {
-      router.replace("/admin/dashboard");
-    } else {
-      router.replace("/user/dashboard");
-    }
-
-  } catch (err: unknown) {
-    const message =
-      err instanceof Error ? err.message : "Login failed";
-    setErrorMsg(message);
-  } finally {
-    setLoading(false);
-  }
-};
 
   return (
     <>
