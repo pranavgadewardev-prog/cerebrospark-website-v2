@@ -117,9 +117,9 @@ export default function CSKrishiPage() {
               )}
 
 
-              <Link href={'/contact'}>
+              <Link href={'/login'}>
                 <button className="px-6 py-3 rounded-xl border border-gray-300 text-gray-900 font-medium hover:bg-gray-100 transition">
-                  Enquire
+                  Purchase Now
                 </button>
               </Link>
             </div>

@@ -1,26 +1,32 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import admin from "@/lib/firebaseAdmin";
 
 export async function POST(req: Request) {
-  const token = req.headers.get("authorization")?.split("Bearer ")[1];
+  try {
+    const body = await req.json();
+    const { title, description, media } = body;
 
-  if (!token) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
+    // Basic validation
+    if (!title || !media) {
+      return Response.json(
+        { error: "Missing required fields" },
+        { status: 400 }
+      );
+    }
+
+    const { data, error } = await supabaseAdmin.from("gallery").insert([
+      {
+        title,
+        description,
+        media, // JSON array
+      },
+    ]);
+
+    if (error) {
+      return Response.json({ error }, { status: 500 });
+    }
+
+    return Response.json({ data }, { status: 200 });
+  } catch (err) {
+    return Response.json({ error: "Something went wrong" }, { status: 500 });
   }
-
-  await admin.auth().verifyIdToken(token);
-
-  const body = await req.json();
-
-  const { title, description, media } = body;
-
-  const { data, error } = await supabaseAdmin.from("gallery").insert([
-    {
-      title,
-      description,
-      media, // JSON array
-    },
-  ]);
-
-  return Response.json({ data, error });
 }
