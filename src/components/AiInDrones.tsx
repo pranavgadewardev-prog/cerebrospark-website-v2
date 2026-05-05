@@ -6,7 +6,7 @@ export default function AiInDrones() {
     const aiFeatures = [
         {
             title: "Transmission Line Inspection",
-            image: "/ai-drones/transmission-line.jpg",
+            image: "/ai-drones/transmission-line-inspection.png",
         },
         {
             title: "People Counting",
@@ -113,7 +113,7 @@ export default function AiInDrones() {
                         <div className="relative rounded-[32px] overflow-hidden shadow-2xl border border-gray-200">
                             <div className="relative h-[550px] w-[full]">
                                 <Image
-                                    src="/ai-drones/main-image.png6"
+                                    src="/ai-drones/main-image.png"
                                     alt="Integrate AI with Our Drones"
                                     fill
                                     className="object-cover"
